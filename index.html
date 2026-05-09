@@ -90,6 +90,11 @@
       visibility: visible;
     }
 
+    body.overview-mode g.eye-set {
+      opacity: 1;
+      visibility: visible;
+    }
+
     .eye-set {
       transform-box: fill-box;
       transform-origin: center;
@@ -152,6 +157,26 @@
     #set-surprise.active { animation: surprisePulse 1.15s ease-in-out infinite; }
     #set-trust.active { animation: trustCalm 2.1s ease-in-out infinite; }
     #set-hope.active { animation: hopeLift 1.5s ease-in-out infinite; }
+
+    body.overview-mode #set-joy,
+    body.overview-mode #set-sad,
+    body.overview-mode #set-angry,
+    body.overview-mode #set-fear,
+    body.overview-mode #set-disgust,
+    body.overview-mode #set-surprise,
+    body.overview-mode #set-trust,
+    body.overview-mode #set-hope {
+      animation-play-state: running;
+    }
+
+    body.overview-mode #set-joy { animation: joyBounce 1.6s ease-in-out infinite; transform: translate(-130px, -65px) scale(0.42); }
+    body.overview-mode #set-sad { animation: sadDrop 2s ease-in-out infinite; transform: translate(-40px, -65px) scale(0.42); }
+    body.overview-mode #set-angry { animation: angryShake 0.45s linear infinite; transform: translate(50px, -65px) scale(0.42); }
+    body.overview-mode #set-fear { animation: fearTremble 0.5s linear infinite; transform: translate(140px, -65px) scale(0.42); }
+    body.overview-mode #set-disgust { animation: disgustSquint 1.3s ease-in-out infinite; transform: translate(-130px, 45px) scale(0.42); }
+    body.overview-mode #set-surprise { animation: surprisePulse 1.15s ease-in-out infinite; transform: translate(-40px, 45px) scale(0.42); }
+    body.overview-mode #set-trust { animation: trustCalm 2.1s ease-in-out infinite; transform: translate(50px, 45px) scale(0.42); }
+    body.overview-mode #set-hope { animation: hopeLift 1.5s ease-in-out infinite; transform: translate(140px, 45px) scale(0.42); }
 
     .controls {
       display: flex;
@@ -267,6 +292,7 @@
   </div>
 
   <nav class="controls" aria-label="눈 모양 선택">
+    <button type="button" id="overview-toggle" data-action="overview">전체보기</button>
     <button type="button" data-target="joy" class="active">기쁨</button>
     <button type="button" data-target="sad">슬픔</button>
     <button type="button" data-target="angry">분노</button>
@@ -281,10 +307,18 @@
   <script>
     const ids = ["joy", "sad", "angry", "fear", "disgust", "surprise", "trust", "hope"];
     const sets = ids.map(id => ({ id, el: document.getElementById("set-" + id) }));
+    const overviewToggle = document.getElementById("overview-toggle");
+
+    function setOverviewMode(enabled) {
+      document.body.classList.toggle("overview-mode", enabled);
+      overviewToggle.classList.toggle("active", enabled);
+      overviewToggle.textContent = enabled ? "단일보기" : "전체보기";
+    }
 
     function select(which) {
       const idx = typeof which === "number" ? which : ids.indexOf(which);
       if (idx < 0) return;
+      setOverviewMode(false);
       sets.forEach((s, i) => {
         s.el.classList.toggle("active", i === idx);
       });
@@ -296,6 +330,11 @@
     }
 
     document.querySelector(".controls").addEventListener("click", e => {
+      const actionBtn = e.target.closest("button[data-action]");
+      if (actionBtn?.dataset.action === "overview") {
+        setOverviewMode(!document.body.classList.contains("overview-mode"));
+        return;
+      }
       const btn = e.target.closest("button[data-target]");
       if (!btn) return;
       select(btn.dataset.target);
@@ -307,6 +346,9 @@
       if (n >= 1 && n <= 8) {
         e.preventDefault();
         select(n - 1);
+      } else if (e.key === "0") {
+        e.preventDefault();
+        setOverviewMode(!document.body.classList.contains("overview-mode"));
       }
     });
   </script>
