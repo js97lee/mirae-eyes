@@ -90,9 +90,13 @@
       visibility: visible;
     }
 
-    body.overview-mode g.eye-set {
-      opacity: 1;
-      visibility: visible;
+    body.overview-mode .screen-wrap {
+      width: min(96vw, 760px);
+      border-radius: 30px;
+    }
+
+    body.overview-mode .mode-controls {
+      width: min(96vw, 760px);
     }
 
     .eye-set {
@@ -157,26 +161,6 @@
     #set-surprise.active { animation: surprisePulse 1.15s ease-in-out infinite; }
     #set-trust.active { animation: trustCalm 2.1s ease-in-out infinite; }
     #set-hope.active { animation: hopeLift 1.5s ease-in-out infinite; }
-
-    body.overview-mode #set-joy,
-    body.overview-mode #set-sad,
-    body.overview-mode #set-angry,
-    body.overview-mode #set-fear,
-    body.overview-mode #set-disgust,
-    body.overview-mode #set-surprise,
-    body.overview-mode #set-trust,
-    body.overview-mode #set-hope {
-      animation-play-state: running;
-    }
-
-    body.overview-mode #set-joy { animation: joyBounce 1.6s ease-in-out infinite; transform: translate(-130px, -65px) scale(0.42); }
-    body.overview-mode #set-sad { animation: sadDrop 2s ease-in-out infinite; transform: translate(-40px, -65px) scale(0.42); }
-    body.overview-mode #set-angry { animation: angryShake 0.45s linear infinite; transform: translate(50px, -65px) scale(0.42); }
-    body.overview-mode #set-fear { animation: fearTremble 0.5s linear infinite; transform: translate(140px, -65px) scale(0.42); }
-    body.overview-mode #set-disgust { animation: disgustSquint 1.3s ease-in-out infinite; transform: translate(-130px, 45px) scale(0.42); }
-    body.overview-mode #set-surprise { animation: surprisePulse 1.15s ease-in-out infinite; transform: translate(-40px, 45px) scale(0.42); }
-    body.overview-mode #set-trust { animation: trustCalm 2.1s ease-in-out infinite; transform: translate(50px, 45px) scale(0.42); }
-    body.overview-mode #set-hope { animation: hopeLift 1.5s ease-in-out infinite; transform: translate(140px, 45px) scale(0.42); }
 
     .controls {
       display: flex;
@@ -316,7 +300,7 @@
     <button type="button" data-target="trust">신뢰</button>
     <button type="button" data-target="hope">기대</button>
   </nav>
-  <p class="hint">숫자 키 <kbd>1</kbd>–<kbd>8</kbd> 로도 전환할 수 있어요.</p>
+  <p class="hint">숫자 키 <kbd>1</kbd>–<kbd>8</kbd> 표정 전환, <kbd>0</kbd> 전체보기 크기 전환.</p>
 
   <script>
     const ids = ["joy", "sad", "angry", "fear", "disgust", "surprise", "trust", "hope"];
@@ -326,13 +310,12 @@
     function setOverviewMode(enabled) {
       document.body.classList.toggle("overview-mode", enabled);
       overviewToggle.classList.toggle("active", enabled);
-      overviewToggle.textContent = enabled ? "단일보기" : "전체보기";
+      overviewToggle.textContent = enabled ? "기본크기" : "전체보기";
     }
 
     function select(which) {
       const idx = typeof which === "number" ? which : ids.indexOf(which);
       if (idx < 0) return;
-      setOverviewMode(false);
       sets.forEach((s, i) => {
         s.el.classList.toggle("active", i === idx);
       });
