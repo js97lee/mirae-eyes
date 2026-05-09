@@ -27,6 +27,12 @@
       padding: 1rem;
     }
 
+    body.overview-mode {
+      padding: 0;
+      gap: 0;
+      justify-content: stretch;
+    }
+
     .screen-wrap {
       position: relative;
       width: min(92vw, 420px);
@@ -91,12 +97,30 @@
     }
 
     body.overview-mode .screen-wrap {
-      width: min(96vw, 760px);
-      border-radius: 30px;
+      width: 100vw;
+      height: 100dvh;
+      aspect-ratio: auto;
+      border-radius: 0;
+      border-width: 0;
+      box-shadow: none;
     }
 
     body.overview-mode .mode-controls {
-      width: min(96vw, 760px);
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      width: auto;
+      z-index: 10;
+      margin: 0;
+    }
+
+    body.overview-mode .controls,
+    body.overview-mode .hint {
+      display: none;
+    }
+
+    body.overview-mode .eyes-layer {
+      padding: 4% 4% 7%;
     }
 
     .eye-set {
