@@ -90,14 +90,68 @@
       visibility: visible;
     }
 
-    @keyframes blink {
-      0%, 92%, 100% { transform: scaleY(1); }
-      94% { transform: scaleY(0.08); transform-origin: center 55%; }
+    .eye-set {
+      transform-box: fill-box;
+      transform-origin: center;
     }
 
-    g.eye-set.active .blinkable {
-      animation: blink 4.5s ease-in-out infinite;
+    @keyframes joyBounce {
+      0%, 100% { transform: translateY(0) scale(1); }
+      25% { transform: translateY(-6px) scale(1.03); }
+      55% { transform: translateY(0) scale(0.98); }
+      75% { transform: translateY(-3px) scale(1.01); }
     }
+
+    @keyframes sadDrop {
+      0%, 100% { transform: translateY(0) scaleY(1); opacity: 1; }
+      50% { transform: translateY(6px) scaleY(0.94); opacity: 0.9; }
+    }
+
+    @keyframes angryShake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-3px); }
+      40% { transform: translateX(3px); }
+      60% { transform: translateX(-2px); }
+      80% { transform: translateX(2px); }
+    }
+
+    @keyframes fearTremble {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(-2px, -1px) scale(1.02); }
+      50% { transform: translate(2px, 1px) scale(0.99); }
+      75% { transform: translate(-1px, 1px) scale(1.01); }
+    }
+
+    @keyframes disgustSquint {
+      0%, 100% { transform: scaleX(1) scaleY(1); }
+      50% { transform: scaleX(0.94) scaleY(0.86); }
+    }
+
+    @keyframes surprisePulse {
+      0%, 100% { transform: scale(1); }
+      45% { transform: scale(1.16); }
+      70% { transform: scale(0.96); }
+    }
+
+    @keyframes trustCalm {
+      0%, 100% { transform: translateY(0); opacity: 1; }
+      50% { transform: translateY(-2px); opacity: 0.92; }
+    }
+
+    @keyframes hopeLift {
+      0%, 100% { transform: translateY(0) scale(1); }
+      35% { transform: translateY(-5px) scale(1.05); }
+      65% { transform: translateY(-2px) scale(1.01); }
+    }
+
+    #set-joy.active { animation: joyBounce 1.6s ease-in-out infinite; }
+    #set-sad.active { animation: sadDrop 2s ease-in-out infinite; }
+    #set-angry.active { animation: angryShake 0.45s linear infinite; }
+    #set-fear.active { animation: fearTremble 0.5s linear infinite; }
+    #set-disgust.active { animation: disgustSquint 1.3s ease-in-out infinite; }
+    #set-surprise.active { animation: surprisePulse 1.15s ease-in-out infinite; }
+    #set-trust.active { animation: trustCalm 2.1s ease-in-out infinite; }
+    #set-hope.active { animation: hopeLift 1.5s ease-in-out infinite; }
 
     .controls {
       display: flex;
