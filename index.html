@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>8가지 눈 표정</title>
+  <style>
+    :root {
+      --screen-bg: #0a0a0a;
+      --frame: #2a2a2e;
+      --led: #3dff6a;
+      --eye: #f5f5f5;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100dvh;
+      background: #000;
+      color: #e8e8e8;
+      font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      padding: 1rem;
+    }
+
+    .screen-wrap {
+      position: relative;
+      width: min(92vw, 420px);
+      aspect-ratio: 4 / 3;
+      background: var(--screen-bg);
+      border-radius: 22px;
+      border: 3px solid var(--frame);
+      box-shadow:
+        inset 0 0 0 2px rgba(255,255,255,0.04),
+        0 12px 40px rgba(0,0,0,0.6);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .status-led {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--led);
+      box-shadow: 0 0 10px var(--led), 0 0 22px rgba(61,255,106,0.35);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .eyes-layer {
+      width: 100%;
+      height: 100%;
+      padding: 8% 6% 12%;
+    }
+
+    .eyes-layer svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .eyes-layer path,
+    .eyes-layer rect,
+    .eyes-layer circle {
+      stroke: var(--eye);
+      fill: none;
+    }
+
+    .eyes-layer circle.filled {
+      fill: var(--eye);
+      stroke: none;
+    }
+
+    g.eye-set {
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease;
+    }
+
+    g.eye-set.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    @keyframes blink {
+      0%, 92%, 100% { transform: scaleY(1); }
+      94% { transform: scaleY(0.08); transform-origin: center 55%; }
+    }
+
+    g.eye-set.active .blinkable {
+      animation: blink 4.5s ease-in-out infinite;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      max-width: 520px;
+    }
+
+    .controls button {
+      appearance: none;
+      border: 1px solid #333;
+      background: #111;
+      color: #ccc;
+      padding: 0.55rem 0.85rem;
+      border-radius: 999px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .controls button:hover {
+      background: #1a1a1a;
+      border-color: #444;
+      color: #fff;
+    }
+
+    .controls button:focus-visible {
+      outline: 2px solid var(--led);
+      outline-offset: 2px;
+    }
+
+    .controls button.active {
+      background: #222;
+      border-color: #555;
+      color: #fff;
+      box-shadow: inset 0 0 0 1px rgba(61,255,106,0.25);
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: #555;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="screen-wrap" aria-live="polite">
+    <span class="status-led" aria-hidden="true"></span>
+    <div class="eyes-layer">
+      <svg viewBox="0 0 400 220" role="img" aria-label="눈 표정 디스플레이">
+        <defs>
+          <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="1" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+
+        <!-- 1 기쁨: 위로 볼록한 호 (^) -->
+        <g class="eye-set active" id="set-joy" data-label="기쁨">
+          <g class="blinkable">
+            <path d="M 58 138 Q 106 92 154 138" stroke-width="16" stroke-linecap="round" filter="url(#glow)" />
+            <path d="M 246 138 Q 294 92 342 138" stroke-width="16" stroke-linecap="round" filter="url(#glow)" />
+          </g>
+        </g>
+
+        <!-- 2 슬픔: 아래로 볼록한 호 -->
+        <g class="eye-set" id="set-sad" data-label="슬픔">
+          <g class="blinkable">
+            <path d="M 58 112 Q 106 156 154 112" stroke-width="16" stroke-linecap="round" />
+            <path d="M 246 112 Q 294 156 342 112" stroke-width="16" stroke-linecap="round" />
+          </g>
+        </g>
+
+        <!-- 3 분노: 안쪽 아래로 기울어진 직사각형 -->
+        <g class="eye-set" id="set-angry" data-label="분노">
+          <rect x="50" y="108" width="72" height="22" rx="4" transform="rotate(-26 106 119)" stroke-width="5" />
+          <rect x="278" y="108" width="72" height="22" rx="4" transform="rotate(26 314 119)" stroke-width="5" />
+        </g>
+
+        <!-- 4 두려움: 안쪽 위로 기울어진 직사각형 -->
+        <g class="eye-set" id="set-fear" data-label="두려움">
+          <rect x="54" y="98" width="68" height="22" rx="4" transform="rotate(28 106 117)" stroke-width="5" />
+          <rect x="278" y="98" width="68" height="22" rx="4" transform="rotate(-28 312 117)" stroke-width="5" />
+        </g>
+
+        <!-- 5 혐오: 납작한 가로막대 (스쿼트) -->
+        <g class="eye-set" id="set-disgust" data-label="혐오">
+          <rect x="44" y="114" width="96" height="14" rx="3" stroke-width="5" />
+          <rect x="262" y="114" width="96" height="14" rx="3" stroke-width="5" />
+        </g>
+
+        <!-- 6 놀람: 원 -->
+        <g class="eye-set" id="set-surprise" data-label="놀람">
+          <circle class="filled" cx="108" cy="125" r="22" />
+          <circle class="filled" cx="294" cy="125" r="22" />
+        </g>
+
+        <!-- 7 신뢰: 두껍게 보이도록 중첩된 가로 라인 세트 -->
+        <g class="eye-set" id="set-trust" data-label="신뢰">
+          <path d="M 44 120 H 174" stroke-width="18" stroke-linecap="round" />
+          <path d="M 226 120 H 356" stroke-width="18" stroke-linecap="round" />
+        </g>
+
+        <!-- 8 기대: 위를 가리키는 셰브론 ∧ -->
+        <g class="eye-set" id="set-hope" data-label="기대">
+          <path d="M 58 146 L106 94 L154 146" stroke-width="16" stroke-linejoin="round" stroke-linecap="round" />
+          <path d="M 246 146 L294 94 L342 146" stroke-width="16" stroke-linejoin="round" stroke-linecap="round" />
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <nav class="controls" aria-label="눈 모양 선택">
+    <button type="button" data-target="joy" class="active">기쁨</button>
+    <button type="button" data-target="sad">슬픔</button>
+    <button type="button" data-target="angry">분노</button>
+    <button type="button" data-target="fear">두려움</button>
+    <button type="button" data-target="disgust">혐오</button>
+    <button type="button" data-target="surprise">놀람</button>
+    <button type="button" data-target="trust">신뢰</button>
+    <button type="button" data-target="hope">기대</button>
+  </nav>
+  <p class="hint">숫자 키 <kbd>1</kbd>–<kbd>8</kbd> 로도 전환할 수 있어요.</p>
+
+  <script>
+    const ids = ["joy", "sad", "angry", "fear", "disgust", "surprise", "trust", "hope"];
+    const sets = ids.map(id => ({ id, el: document.getElementById("set-" + id) }));
+
+    function select(which) {
+      const idx = typeof which === "number" ? which : ids.indexOf(which);
+      if (idx < 0) return;
+      sets.forEach((s, i) => {
+        s.el.classList.toggle("active", i === idx);
+      });
+      document.querySelectorAll(".controls button").forEach((btn, i) => {
+        btn.classList.toggle("active", i === idx);
+      });
+      const label = sets[idx].el.dataset.label || "";
+      document.title = label + " — 8가지 눈";
+    }
+
+    document.querySelector(".controls").addEventListener("click", e => {
+      const btn = e.target.closest("button[data-target]");
+      if (!btn) return;
+      select(btn.dataset.target);
+    });
+
+    document.addEventListener("keydown", e => {
+      if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+      const n = Number(e.key);
+      if (n >= 1 && n <= 8) {
+        e.preventDefault();
+        select(n - 1);
+      }
+    });
+  </script>
+</body>
+</html>
