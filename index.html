@@ -65,35 +65,16 @@
       width: 100%;
       height: 100%;
       padding: 8% 6% 12%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .eyes-layer svg {
+    .eyes-layer canvas {
       width: 100%;
       height: 100%;
-      overflow: visible;
-    }
-
-    .eyes-layer path,
-    .eyes-layer rect,
-    .eyes-layer circle {
-      stroke: var(--eye);
-      fill: none;
-    }
-
-    .eyes-layer circle.filled {
-      fill: var(--eye);
-      stroke: none;
-    }
-
-    g.eye-set {
-      opacity: 0;
-      visibility: hidden;
-      transition: opacity 0.2s ease;
-    }
-
-    g.eye-set.active {
-      opacity: 1;
-      visibility: visible;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
     }
 
     body.overview-mode .screen-wrap {
@@ -122,69 +103,6 @@
     body.overview-mode .eyes-layer {
       padding: 4% 4% 7%;
     }
-
-    .eye-set {
-      transform-box: fill-box;
-      transform-origin: center;
-    }
-
-    @keyframes joyBounce {
-      0%, 100% { transform: translateY(0) scale(1); }
-      25% { transform: translateY(-6px) scale(1.03); }
-      55% { transform: translateY(0) scale(0.98); }
-      75% { transform: translateY(-3px) scale(1.01); }
-    }
-
-    @keyframes sadDrop {
-      0%, 100% { transform: translateY(0) scaleY(1); opacity: 1; }
-      50% { transform: translateY(6px) scaleY(0.94); opacity: 0.9; }
-    }
-
-    @keyframes angryShake {
-      0%, 100% { transform: translateX(0); }
-      20% { transform: translateX(-3px); }
-      40% { transform: translateX(3px); }
-      60% { transform: translateX(-2px); }
-      80% { transform: translateX(2px); }
-    }
-
-    @keyframes fearTremble {
-      0%, 100% { transform: translate(0, 0) scale(1); }
-      25% { transform: translate(-2px, -1px) scale(1.02); }
-      50% { transform: translate(2px, 1px) scale(0.99); }
-      75% { transform: translate(-1px, 1px) scale(1.01); }
-    }
-
-    @keyframes disgustSquint {
-      0%, 100% { transform: scaleX(1) scaleY(1); }
-      50% { transform: scaleX(0.94) scaleY(0.86); }
-    }
-
-    @keyframes surprisePulse {
-      0%, 100% { transform: scale(1); }
-      45% { transform: scale(1.16); }
-      70% { transform: scale(0.96); }
-    }
-
-    @keyframes trustCalm {
-      0%, 100% { transform: translateY(0); opacity: 1; }
-      50% { transform: translateY(-2px); opacity: 0.92; }
-    }
-
-    @keyframes hopeLift {
-      0%, 100% { transform: translateY(0) scale(1); }
-      35% { transform: translateY(-5px) scale(1.05); }
-      65% { transform: translateY(-2px) scale(1.01); }
-    }
-
-    #set-joy.active { animation: joyBounce 1.6s ease-in-out infinite; }
-    #set-sad.active { animation: sadDrop 2s ease-in-out infinite; }
-    #set-angry.active { animation: angryShake 0.45s linear infinite; }
-    #set-fear.active { animation: fearTremble 0.5s linear infinite; }
-    #set-disgust.active { animation: disgustSquint 1.3s ease-in-out infinite; }
-    #set-surprise.active { animation: surprisePulse 1.15s ease-in-out infinite; }
-    #set-trust.active { animation: trustCalm 2.1s ease-in-out infinite; }
-    #set-hope.active { animation: hopeLift 1.5s ease-in-out infinite; }
 
     .controls {
       display: flex;
@@ -251,66 +169,7 @@
   <div class="screen-wrap" aria-live="polite">
     <span class="status-led" aria-hidden="true"></span>
     <div class="eyes-layer">
-      <svg viewBox="0 0 400 220" role="img" aria-label="눈 표정 디스플레이">
-        <defs>
-          <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="1" result="b" />
-            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
-          </filter>
-        </defs>
-
-        <!-- 1 기쁨: 위로 볼록한 호 (^) -->
-        <g class="eye-set active" id="set-joy" data-label="기쁨">
-          <g class="blinkable">
-            <path d="M 58 138 Q 106 92 154 138" stroke-width="16" stroke-linecap="round" filter="url(#glow)" />
-            <path d="M 246 138 Q 294 92 342 138" stroke-width="16" stroke-linecap="round" filter="url(#glow)" />
-          </g>
-        </g>
-
-        <!-- 2 슬픔: 아래로 볼록한 호 -->
-        <g class="eye-set" id="set-sad" data-label="슬픔">
-          <g class="blinkable">
-            <path d="M 58 112 Q 106 156 154 112" stroke-width="16" stroke-linecap="round" />
-            <path d="M 246 112 Q 294 156 342 112" stroke-width="16" stroke-linecap="round" />
-          </g>
-        </g>
-
-        <!-- 3 분노: 안쪽 아래로 기울어진 직사각형 -->
-        <g class="eye-set" id="set-angry" data-label="분노">
-          <rect x="50" y="108" width="72" height="22" rx="4" transform="rotate(-26 106 119)" stroke-width="5" />
-          <rect x="278" y="108" width="72" height="22" rx="4" transform="rotate(26 314 119)" stroke-width="5" />
-        </g>
-
-        <!-- 4 두려움: 안쪽 위로 기울어진 직사각형 -->
-        <g class="eye-set" id="set-fear" data-label="두려움">
-          <rect x="54" y="98" width="68" height="22" rx="4" transform="rotate(28 106 117)" stroke-width="5" />
-          <rect x="278" y="98" width="68" height="22" rx="4" transform="rotate(-28 312 117)" stroke-width="5" />
-        </g>
-
-        <!-- 5 혐오: 납작한 가로막대 (스쿼트) -->
-        <g class="eye-set" id="set-disgust" data-label="혐오">
-          <rect x="44" y="114" width="96" height="14" rx="3" stroke-width="5" />
-          <rect x="262" y="114" width="96" height="14" rx="3" stroke-width="5" />
-        </g>
-
-        <!-- 6 놀람: 원 -->
-        <g class="eye-set" id="set-surprise" data-label="놀람">
-          <circle class="filled" cx="108" cy="125" r="22" />
-          <circle class="filled" cx="294" cy="125" r="22" />
-        </g>
-
-        <!-- 7 신뢰: 두껍게 보이도록 중첩된 가로 라인 세트 -->
-        <g class="eye-set" id="set-trust" data-label="신뢰">
-          <path d="M 44 120 H 174" stroke-width="18" stroke-linecap="round" />
-          <path d="M 226 120 H 356" stroke-width="18" stroke-linecap="round" />
-        </g>
-
-        <!-- 8 기대: 위를 가리키는 셰브론 ∧ -->
-        <g class="eye-set" id="set-hope" data-label="기대">
-          <path d="M 58 146 L106 94 L154 146" stroke-width="16" stroke-linejoin="round" stroke-linecap="round" />
-          <path d="M 246 146 L294 94 L342 146" stroke-width="16" stroke-linejoin="round" stroke-linecap="round" />
-        </g>
-      </svg>
+      <canvas id="eyes-canvas" width="128" height="72" role="img" aria-label="픽셀 눈 표정 디스플레이"></canvas>
     </div>
   </div>
 
@@ -328,8 +187,77 @@
 
   <script>
     const ids = ["joy", "sad", "angry", "fear", "disgust", "surprise", "trust", "hope"];
-    const sets = ids.map(id => ({ id, el: document.getElementById("set-" + id) }));
+    const labels = ["기쁨", "슬픔", "분노", "두려움", "혐오", "놀람", "신뢰", "기대"];
     const overviewToggle = document.getElementById("overview-toggle");
+    const canvas = document.getElementById("eyes-canvas");
+    const ctx = canvas.getContext("2d");
+    let currentIndex = 0;
+
+    const patterns = {
+      joy: ["100000001", "010000010", "001000100", "000101000"],
+      sad: ["000101000", "001000100", "010000010", "100000001"],
+      angryL: ["111111000", "011111100", "001111110"],
+      angryR: ["000111111", "001111110", "011111100"],
+      fearL: ["000111111", "001111110", "011111100"],
+      fearR: ["111111000", "011111100", "001111110"],
+      disgust: ["111111111", "111111111"],
+      surprise: ["001111100", "011111110", "111001111", "111001111", "011111110", "001111100"],
+      trust: ["111111111", "111111111", "111111111"],
+      hope: ["000101000", "001000100", "010000010", "100000001", "010000010", "001000100"]
+    };
+
+    function drawPattern(pattern, startX, startY, size, color, flipX = false) {
+      for (let y = 0; y < pattern.length; y++) {
+        const row = pattern[y];
+        for (let x = 0; x < row.length; x++) {
+          if (row[x] !== "1") continue;
+          const px = flipX ? (row.length - 1 - x) : x;
+          ctx.fillStyle = color;
+          ctx.fillRect(startX + (px * size), startY + (y * size), size, size);
+        }
+      }
+    }
+
+    function getAnimState(id, t) {
+      switch (id) {
+        case "joy": return { dx: 0, dy: Math.sin(t * 0.01) * 1.6, scale: 1 + Math.sin(t * 0.014) * 0.03 };
+        case "sad": return { dx: 0, dy: Math.sin(t * 0.004) * 2.4, scale: 1 };
+        case "angry": return { dx: Math.sign(Math.sin(t * 0.06)) * 1.2, dy: 0, scale: 1 };
+        case "fear": return { dx: Math.sin(t * 0.09) * 1.4, dy: Math.cos(t * 0.07) * 1.1, scale: 1 };
+        case "disgust": return { dx: 0, dy: 0, scale: 1 + Math.sin(t * 0.012) * -0.04 };
+        case "surprise": return { dx: 0, dy: 0, scale: 1 + Math.sin(t * 0.014) * 0.12 };
+        case "trust": return { dx: 0, dy: Math.sin(t * 0.004) * -0.8, scale: 1 };
+        case "hope": return { dx: 0, dy: Math.sin(t * 0.01) * -1.8, scale: 1 + Math.sin(t * 0.01) * 0.02 };
+        default: return { dx: 0, dy: 0, scale: 1 };
+      }
+    }
+
+    function render(time = 0) {
+      const id = ids[currentIndex];
+      const anim = getAnimState(id, time);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#050505";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const unit = 4 * anim.scale;
+      const leftX = (canvas.width * 0.23) + anim.dx;
+      const rightX = (canvas.width * 0.62) - anim.dx;
+      const y = (canvas.height * 0.34) + anim.dy;
+      const color = "#f5f5f5";
+
+      if (id === "angry") {
+        drawPattern(patterns.angryL, leftX, y, unit, color);
+        drawPattern(patterns.angryR, rightX, y, unit, color);
+      } else if (id === "fear") {
+        drawPattern(patterns.fearL, leftX, y, unit, color);
+        drawPattern(patterns.fearR, rightX, y, unit, color);
+      } else {
+        drawPattern(patterns[id], leftX, y, unit, color);
+        drawPattern(patterns[id], rightX, y, unit, color, true);
+      }
+
+      requestAnimationFrame(render);
+    }
 
     function setOverviewMode(enabled) {
       document.body.classList.toggle("overview-mode", enabled);
@@ -340,14 +268,11 @@
     function select(which) {
       const idx = typeof which === "number" ? which : ids.indexOf(which);
       if (idx < 0) return;
-      sets.forEach((s, i) => {
-        s.el.classList.toggle("active", i === idx);
-      });
+      currentIndex = idx;
       document.querySelectorAll(".controls button").forEach((btn, i) => {
         btn.classList.toggle("active", i === idx);
       });
-      const label = sets[idx].el.dataset.label || "";
-      document.title = label + " — 8가지 눈";
+      document.title = labels[idx] + " — 8가지 눈";
     }
 
     overviewToggle.addEventListener("click", () => {
@@ -371,6 +296,9 @@
         setOverviewMode(!document.body.classList.contains("overview-mode"));
       }
     });
+
+    select(0);
+    requestAnimationFrame(render);
   </script>
 </body>
 </html>
