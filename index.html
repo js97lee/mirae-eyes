@@ -158,6 +158,69 @@
       color: #555;
       text-align: center;
     }
+
+    .stt-panel {
+      width: min(92vw, 520px);
+      display: grid;
+      gap: 0.5rem;
+      justify-items: center;
+    }
+
+    .stt-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .stt-row button {
+      appearance: none;
+      border: 1px solid #333;
+      background: #111;
+      color: #ccc;
+      padding: 0.55rem 0.85rem;
+      border-radius: 999px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .stt-row button:hover {
+      background: #1a1a1a;
+      border-color: #444;
+      color: #fff;
+    }
+
+    .stt-row button.active {
+      background: #222;
+      border-color: #555;
+      color: #fff;
+      box-shadow: inset 0 0 0 1px rgba(61,255,106,0.25);
+    }
+
+    .stt-status {
+      font-size: 0.8rem;
+      color: #8d8d8d;
+      text-align: center;
+      min-height: 1.25rem;
+    }
+
+    .stt-text {
+      width: 100%;
+      min-height: 2.2rem;
+      max-height: 7.2rem;
+      border: 1px solid #26262a;
+      border-radius: 10px;
+      background: #090909;
+      color: #c7c7c7;
+      font-size: 0.8rem;
+      line-height: 1.4;
+      padding: 0.6rem 0.75rem;
+      text-align: left;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
   </style>
 </head>
 <body>
@@ -169,7 +232,7 @@
   <div class="screen-wrap" aria-live="polite">
     <span class="status-led" aria-hidden="true"></span>
     <div class="eyes-layer">
-      <canvas id="eyes-canvas" width="128" height="72" role="img" aria-label="픽셀 눈 표정 디스플레이"></canvas>
+      <canvas id="eyes-canvas" width="192" height="112" role="img" aria-label="픽셀 눈 표정 디스플레이"></canvas>
     </div>
   </div>
 
@@ -183,51 +246,199 @@
     <button type="button" data-target="trust">신뢰</button>
     <button type="button" data-target="hope">기대</button>
   </nav>
+  <section class="stt-panel" aria-label="음성 인식 자동 표정">
+    <div class="stt-row">
+      <button type="button" id="stt-toggle">STT 시작</button>
+      <button type="button" id="llm-toggle">GPT 맥락 OFF</button>
+    </div>
+    <p class="stt-status" id="stt-status">대기 중</p>
+    <div class="stt-text" id="stt-text">인식 문장이 여기에 표시됩니다.</div>
+  </section>
   <p class="hint">숫자 키 <kbd>1</kbd>–<kbd>8</kbd> 표정 전환, <kbd>0</kbd> 전체보기 크기 전환.</p>
 
   <script>
     const ids = ["joy", "sad", "angry", "fear", "disgust", "surprise", "trust", "hope"];
     const labels = ["기쁨", "슬픔", "분노", "두려움", "혐오", "놀람", "신뢰", "기대"];
     const overviewToggle = document.getElementById("overview-toggle");
+    const sttToggle = document.getElementById("stt-toggle");
+    const llmToggle = document.getElementById("llm-toggle");
+    const sttStatus = document.getElementById("stt-status");
+    const sttText = document.getElementById("stt-text");
     const canvas = document.getElementById("eyes-canvas");
     const ctx = canvas.getContext("2d");
     let currentIndex = 0;
+    let recognition = null;
+    let sttRunning = false;
+    let utteranceHistory = [];
+    let scoreHistory = [];
+    let pendingContextText = "";
+    let contextTimer = null;
+    let currentAutoEmotion = null;
+    let llmEnabled = false;
+    let llmBusy = false;
+    let lastLlmTick = 0;
+    let lastLlmContext = "";
 
-    const patterns = {
-      joy: ["100000001", "010000010", "001000100", "000101000"],
-      sad: ["000101000", "001000100", "010000010", "100000001"],
-      angryL: ["111111000", "011111100", "001111110"],
-      angryR: ["000111111", "001111110", "011111100"],
-      fearL: ["000111111", "001111110", "011111100"],
-      fearR: ["111111000", "011111100", "001111110"],
-      disgust: ["111111111", "111111111"],
-      surprise: ["001111100", "011111110", "111001111", "111001111", "011111110", "001111100"],
-      trust: ["111111111", "111111111", "111111111"],
-      hope: ["000101000", "001000100", "010000010", "100000001", "010000010", "001000100"]
+    const DOT = 4;
+    const GAP = 2;
+    const STEP = DOT + GAP;
+    const COLS = Math.floor(canvas.width / STEP);
+    const ROWS = Math.floor(canvas.height / STEP);
+    const MAX_UTTERANCES = 8;
+    const MAX_VISIBLE_UTTERANCES = 4;
+    const MAX_CONTEXT_CHARS = 260;
+    const MAX_CLAUSES_ANALYZED = 6;
+    const CONTEXT_UPDATE_INTERVAL_MS = 150;
+    const LLM_REFRESH_MS = 1800;
+
+    const shapes = {
+      joy: [
+        "....1111....",
+        "...1....1...",
+        "..1......1..",
+        "...1....1..."
+      ],
+      joyBlink: [
+        "..11111111..",
+        "..11111111.."
+      ],
+      sad: [
+        "...1....1...",
+        "..1......1..",
+        "...1....1...",
+        "....1111...."
+      ],
+      angry: [
+        "111111......",
+        ".111111.....",
+        "..111111...."
+      ],
+      fear: [
+        "...111111...",
+        "..11....11..",
+        ".11......11.",
+        ".11......11.",
+        "..11....11..",
+        "...111111..."
+      ],
+      disgust: [
+        "1111111111..",
+        "1111111111.."
+      ],
+      surprise: [
+        "...111111...",
+        "..11....11..",
+        "..11....11..",
+        "...111111...",
+        "..11....11..",
+        "...111111..."
+      ],
+      trust: [
+        "..11111111..",
+        "..11111111.."
+      ],
+      hope: [
+        "..1....1....",
+        "...1..1.....",
+        "....11......",
+        "...1..1.....",
+        "..1....1...."
+      ]
     };
 
-    function drawPattern(pattern, startX, startY, size, color, flipX = false) {
+    const emotionLexicon = {
+      joy: [
+        "좋아", "좋네", "행복", "기뻐", "신난", "설렌", "웃", "축하", "사랑", "반가", "최고",
+        "즐거", "재밌", "재미있", "뿌듯", "만족", "흐뭇", "신뢰가", "기분좋", "통쾌", "홀가분"
+      ],
+      sad: [
+        "슬프", "우울", "눈물", "힘들", "지쳤", "외롭", "속상", "아쉽", "그립", "서운", "허무",
+        "허탈", "무기력", "공허", "먹먹", "침울", "낙담", "울적", "막막", "기운없", "허전"
+      ],
+      angry: [
+        "화나", "짜증", "열받", "분노", "빡쳐", "빡치", "답답", "최악", "억울", "미쳤", "어이없",
+        "개빡", "분통", "격분", "약올라", "약오르", "성질나", "열불", "분해", "환장", "한심"
+      ],
+      fear: [
+        "무섭", "불안", "걱정", "두려", "위험", "긴장", "떨려", "공포", "초조", "조마조마",
+        "불길", "겁나", "겁난", "무서워", "식은땀", "심장떨", "패닉", "불확실", "불안정", "긴박"
+      ],
+      disgust: [
+        "역겨", "징그러", "혐오", "더러", "불쾌", "구역질", "끔찍", "싫어", "토할", "비위상",
+        "정떨어", "메스껍", "질색", "꺼림칙", "혐", "드러워", "구질구질", "불결", "찌질", "보기싫"
+      ],
+      surprise: [
+        "와", "헉", "대박", "깜짝", "놀랐", "진짜", "세상에", "어머", "헐", "띠용", "충격",
+        "실화", "말도안", "믿기지", "이럴수가", "깜놀", "예상밖", "반전", "뜻밖", "어안이벙벙"
+      ],
+      trust: [
+        "믿", "안심", "든든", "괜찮", "의지", "신뢰", "함께", "고마워", "감사", "든든해",
+        "맡겨", "확실", "안정", "믿음직", "의연", "침착", "차분", "신용", "든든하다", "믿을만"
+      ],
+      hope: [
+        "희망", "기대", "잘될", "해낼", "내일", "미래", "응원", "가능", "해보자", "버텨",
+        "회복", "좋아질", "될거", "될 수", "성장", "기회", "도전", "다시", "해결될", "빛이보"
+      ]
+    };
+
+    const phraseBoosters = [
+      { pattern: /(행복해|기분이 좋|오늘 좋|너무 좋)/, emotion: "joy", score: 2.2 },
+      { pattern: /(울고 싶|너무 힘들|마음이 아프|멘탈 나갔)/, emotion: "sad", score: 2.3 },
+      { pattern: /(열 받아|진짜 화나|짜증나 죽겠|개빡쳐)/, emotion: "angry", score: 2.4 },
+      { pattern: /(불안해 죽겠|큰일났|망할까봐|무서워 죽겠)/, emotion: "fear", score: 2.3 },
+      { pattern: /(진짜 역겹|토 나와|보기만 해도 싫)/, emotion: "disgust", score: 2.3 },
+      { pattern: /(헉 진짜|이게 말이 돼|완전 반전|상상도 못)/, emotion: "surprise", score: 2.1 },
+      { pattern: /(믿고 가|네가 있어서|든든하네|안심된다)/, emotion: "trust", score: 2.2 },
+      { pattern: /(잘 될 거|해낼 수 있|괜찮아질 거|희망이 있)/, emotion: "hope", score: 2.2 }
+    ];
+
+    function drawDotGrid() {
+      ctx.fillStyle = "rgba(255,255,255,0.045)";
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          const px = x * STEP + DOT * 0.5;
+          const py = y * STEP + DOT * 0.5;
+          ctx.beginPath();
+          ctx.arc(px, py, DOT * 0.34, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    function drawLed(x, y, alpha = 1) {
+      const px = x * STEP + DOT * 0.5;
+      const py = y * STEP + DOT * 0.5;
+      ctx.fillStyle = `rgba(245,245,245,${0.24 * alpha})`;
+      ctx.beginPath();
+      ctx.arc(px, py, DOT * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = `rgba(255,255,255,${0.97 * alpha})`;
+      ctx.beginPath();
+      ctx.arc(px, py, DOT * 0.46, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawShape(pattern, originX, originY, mirrored = false, alpha = 1) {
       for (let y = 0; y < pattern.length; y++) {
         const row = pattern[y];
         for (let x = 0; x < row.length; x++) {
           if (row[x] !== "1") continue;
-          const px = flipX ? (row.length - 1 - x) : x;
-          ctx.fillStyle = color;
-          ctx.fillRect(startX + (px * size), startY + (y * size), size, size);
+          const px = mirrored ? (row.length - 1 - x) : x;
+          drawLed(originX + px, originY + y, alpha);
         }
       }
     }
 
     function getAnimState(id, t) {
       switch (id) {
-        case "joy": return { dx: 0, dy: Math.sin(t * 0.01) * 1.6, scale: 1 + Math.sin(t * 0.014) * 0.03 };
-        case "sad": return { dx: 0, dy: Math.sin(t * 0.004) * 2.4, scale: 1 };
-        case "angry": return { dx: Math.sign(Math.sin(t * 0.06)) * 1.2, dy: 0, scale: 1 };
-        case "fear": return { dx: Math.sin(t * 0.09) * 1.4, dy: Math.cos(t * 0.07) * 1.1, scale: 1 };
-        case "disgust": return { dx: 0, dy: 0, scale: 1 + Math.sin(t * 0.012) * -0.04 };
-        case "surprise": return { dx: 0, dy: 0, scale: 1 + Math.sin(t * 0.014) * 0.12 };
-        case "trust": return { dx: 0, dy: Math.sin(t * 0.004) * -0.8, scale: 1 };
-        case "hope": return { dx: 0, dy: Math.sin(t * 0.01) * -1.8, scale: 1 + Math.sin(t * 0.01) * 0.02 };
+        case "joy": return { dx: 0, dy: Math.sin(t * 0.01) * 0.8, blink: Math.sin(t * 0.004) > 0.96 };
+        case "sad": return { dx: 0, dy: Math.sin(t * 0.004) * 0.9 };
+        case "angry": return { dx: Math.sign(Math.sin(t * 0.055)) * 0.7, dy: 0 };
+        case "fear": return { dx: Math.sin(t * 0.09) * 0.8, dy: Math.cos(t * 0.07) * 0.8 };
+        case "disgust": return { dx: 0, dy: 0, alpha: 0.9 + Math.sin(t * 0.012) * 0.1 };
+        case "surprise": return { dx: 0, dy: 0, alpha: 0.9 + Math.sin(t * 0.014) * 0.1 };
+        case "trust": return { dx: 0, dy: Math.sin(t * 0.004) * -0.4 };
+        case "hope": return { dx: 0, dy: Math.sin(t * 0.01) * -0.8 };
         default: return { dx: 0, dy: 0, scale: 1 };
       }
     }
@@ -238,22 +449,19 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = "#050505";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawDotGrid();
 
-      const unit = 4 * anim.scale;
-      const leftX = (canvas.width * 0.23) + anim.dx;
-      const rightX = (canvas.width * 0.62) - anim.dx;
-      const y = (canvas.height * 0.34) + anim.dy;
-      const color = "#f5f5f5";
+      const baseLeftX = 2 + Math.round(anim.dx || 0);
+      const baseRightX = 18 - Math.round(anim.dx || 0);
+      const baseY = 9 + Math.round(anim.dy || 0);
+      const alpha = anim.alpha || 1;
 
-      if (id === "angry") {
-        drawPattern(patterns.angryL, leftX, y, unit, color);
-        drawPattern(patterns.angryR, rightX, y, unit, color);
-      } else if (id === "fear") {
-        drawPattern(patterns.fearL, leftX, y, unit, color);
-        drawPattern(patterns.fearR, rightX, y, unit, color);
+      if (id === "joy" && anim.blink) {
+        drawShape(shapes.joyBlink, baseLeftX, baseY + 1, false, alpha);
+        drawShape(shapes.joyBlink, baseRightX, baseY + 1, true, alpha);
       } else {
-        drawPattern(patterns[id], leftX, y, unit, color);
-        drawPattern(patterns[id], rightX, y, unit, color, true);
+        drawShape(shapes[id], baseLeftX, baseY, false, alpha);
+        drawShape(shapes[id], baseRightX, baseY, true, alpha);
       }
 
       requestAnimationFrame(render);
@@ -275,9 +483,325 @@
       document.title = labels[idx] + " — 8가지 눈";
     }
 
+    function countMatches(text, token) {
+      const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const hits = text.match(new RegExp(escaped, "g"));
+      return hits ? hits.length : 0;
+    }
+
+    function addScore(scores, emotion, value) {
+      scores[emotion] = (scores[emotion] || 0) + value;
+    }
+
+    function scoreEmotionText(text) {
+      const normalized = text.toLowerCase().replace(/\s+/g, " ").trim().slice(-MAX_CONTEXT_CHARS);
+      const scores = Object.fromEntries(ids.map(id => [id, 0]));
+      if (!normalized) return scores;
+
+      const clauses = normalized
+        .split(/(?:[.!?]|,| 그리고 | 그런데 | 근데 | 하지만 | 다만 | 그래도 )/g)
+        .map(part => part.trim())
+        .filter(Boolean);
+      const segments = (clauses.length ? clauses : [normalized]).slice(-MAX_CLAUSES_ANALYZED);
+      const negations = ["안 ", "못 ", "아니", "별로", "전혀", "없어", "없다"];
+      const boosters = ["진짜", "너무", "엄청", "완전", "매우", "대박", "정말"];
+      const downtoners = ["조금", "약간", "살짝", "그냥", "좀"];
+
+      segments.forEach((segment, idx) => {
+        const positionWeight = 0.8 + (idx / Math.max(1, segments.length - 1)) * 0.7;
+        let localIntensity = 1;
+        boosters.forEach(word => {
+          if (segment.includes(word)) localIntensity += 0.15;
+        });
+        downtoners.forEach(word => {
+          if (segment.includes(word)) localIntensity -= 0.08;
+        });
+        localIntensity = Math.max(0.7, Math.min(1.5, localIntensity));
+
+        ids.forEach(id => {
+          emotionLexicon[id].forEach(keyword => {
+            const hitCount = countMatches(segment, keyword);
+            if (!hitCount) return;
+
+            let scoreDelta = hitCount * 2 * positionWeight * localIntensity;
+            const hasNegation = negations.some(neg => segment.includes(`${neg}${keyword}`) || segment.includes(`${neg}${keyword.slice(0, 2)}`));
+            if (!hasNegation) {
+              addScore(scores, id, scoreDelta);
+              return;
+            }
+
+            if (id === "joy" || id === "trust" || id === "hope") {
+              addScore(scores, "sad", scoreDelta * 0.6);
+              addScore(scores, "angry", scoreDelta * 0.5);
+            } else if (id === "fear") {
+              addScore(scores, "trust", scoreDelta * 0.5);
+              addScore(scores, "hope", scoreDelta * 0.3);
+            } else {
+              addScore(scores, id, scoreDelta * 0.4);
+            }
+          });
+        });
+      });
+
+      phraseBoosters.forEach(item => {
+        if (item.pattern.test(normalized)) addScore(scores, item.emotion, item.score);
+      });
+
+      if (/(ㅋㅋ|ㅎㅎ|하하|웃음)/.test(normalized)) addScore(scores, "joy", 2.3);
+      if (/(개웃|웃기네|웃겨죽)/.test(normalized)) addScore(scores, "joy", 1.7);
+      if (/(ㅠㅠ|ㅜㅜ|흑흑|울고)/.test(normalized)) addScore(scores, "sad", 2.3);
+      if (/(현타|멘붕|번아웃)/.test(normalized)) addScore(scores, "sad", 1.8);
+      if (/!{2,}/.test(normalized) || /(헉|어머|대박|미쳤다)/.test(normalized)) addScore(scores, "surprise", 1.5);
+      if (/(실화냐|레전드|충공깽)/.test(normalized)) addScore(scores, "surprise", 1.6);
+      if (/(고맙|감사|믿고|든든)/.test(normalized)) addScore(scores, "trust", 1.6);
+      if (/(믿는다|네 편|내 편|같이 가자)/.test(normalized)) addScore(scores, "trust", 1.5);
+      if (/(잘될거|잘 될거|해보자|할 수 있)/.test(normalized)) addScore(scores, "hope", 1.8);
+      if (/(포기하지|다시 해|기회는 있|회복할)/.test(normalized)) addScore(scores, "hope", 1.5);
+      if (/(짜증|빡쳐|열받|화나)/.test(normalized) && /(왜|또|계속)/.test(normalized)) addScore(scores, "angry", 1.4);
+      if (/(역겹|토할|구역질|혐오)/.test(normalized)) addScore(scores, "disgust", 1.7);
+      if (/(불안|초조|걱정|무섭)/.test(normalized) && /(밤|시험|면접|결과|사고)/.test(normalized)) addScore(scores, "fear", 1.4);
+
+      return scores;
+    }
+
+    function pickBestEmotion(scores) {
+      let bestId = null;
+      let bestScore = 0;
+      let secondScore = 0;
+      ids.forEach(id => {
+        const value = scores[id];
+        if (value > bestScore) {
+          secondScore = bestScore;
+          bestScore = value;
+          bestId = id;
+        } else if (value > secondScore) {
+          secondScore = value;
+        }
+      });
+      return { id: bestScore > 0 ? bestId : null, bestScore, secondScore };
+    }
+
+    function getMergedHistoryScores() {
+      const merged = Object.fromEntries(ids.map(id => [id, 0]));
+      for (let i = scoreHistory.length - 1; i >= 0; i--) {
+        const distance = scoreHistory.length - 1 - i;
+        const weight = Math.max(0.4, 1 - distance * 0.12);
+        ids.forEach(id => {
+          merged[id] += scoreHistory[i][id] * weight;
+        });
+      }
+      return merged;
+    }
+
+    function detectEmotionFromRecentUtterances(text) {
+      const currentScores = scoreEmotionText(text);
+      scoreHistory.push(currentScores);
+      if (scoreHistory.length > MAX_UTTERANCES) scoreHistory.shift();
+      return pickBestEmotion(getMergedHistoryScores());
+    }
+
+    function detectEmotionFromSnapshot(text) {
+      const merged = getMergedHistoryScores();
+      const liveScores = scoreEmotionText(text);
+      ids.forEach(id => {
+        merged[id] += liveScores[id] * 1.05;
+      });
+      return pickBestEmotion(merged);
+    }
+
+    function applyAutoEmotion(result, reasonLabel) {
+      if (!result || !result.id) return;
+      const confidenceGap = result.bestScore - result.secondScore;
+      const canSwitch = currentAutoEmotion === null || currentAutoEmotion === result.id || confidenceGap >= 0.85 || result.bestScore >= 2.6;
+      if (!canSwitch) return;
+
+      if (currentAutoEmotion !== result.id) {
+        select(result.id);
+        currentAutoEmotion = result.id;
+      }
+      setSttStatus(`${reasonLabel}: ${labels[ids.indexOf(result.id)]}`);
+    }
+
+    function evaluateContextAndAnimate() {
+      if (!sttRunning) return;
+      const text = pendingContextText.trim();
+      if (!text) return;
+      const result = detectEmotionFromSnapshot(text);
+      applyAutoEmotion(result, "자동 감정(0.15초)");
+      maybeRunLlmContext(text);
+    }
+
+    function startContextTimer() {
+      if (contextTimer) clearInterval(contextTimer);
+      contextTimer = setInterval(evaluateContextAndAnimate, CONTEXT_UPDATE_INTERVAL_MS);
+    }
+
+    function stopContextTimer() {
+      if (!contextTimer) return;
+      clearInterval(contextTimer);
+      contextTimer = null;
+    }
+
+    function resetSttBuffers() {
+      utteranceHistory = [];
+      scoreHistory = [];
+      pendingContextText = "";
+      currentAutoEmotion = null;
+      lastLlmContext = "";
+    }
+
+    function buildContextText(interimText = "") {
+      const recent = utteranceHistory.slice(-MAX_VISIBLE_UTTERANCES);
+      const joined = [...recent, interimText.trim()].filter(Boolean).join("\n");
+      return joined.length > MAX_CONTEXT_CHARS ? joined.slice(-MAX_CONTEXT_CHARS) : joined;
+    }
+
+    async function fetchLlmEmotion(text) {
+      const response = await fetch("/api/emotion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: text.slice(-MAX_CONTEXT_CHARS),
+          history: utteranceHistory.slice(-MAX_VISIBLE_UTTERANCES)
+        })
+      });
+      if (!response.ok) throw new Error(`GPT API 오류 ${response.status}`);
+
+      const data = await response.json();
+      if (!data.ok || !ids.includes(data.emotion)) {
+        throw new Error(data.error || "GPT 응답 파싱 실패");
+      }
+
+      return {
+        id: data.emotion,
+        bestScore: Math.max(0, Math.min(1, Number(data.confidence) || 0.5)) * 3,
+        secondScore: 0,
+        reason: data.reason || "맥락 추론"
+      };
+    }
+
+    async function maybeRunLlmContext(text) {
+      if (!llmEnabled || !sttRunning || llmBusy) return;
+      const now = Date.now();
+      if (now - lastLlmTick < LLM_REFRESH_MS) return;
+      const signature = text.replace(/\s+/g, " ").trim().slice(-160);
+      if (text.length < 8 || signature === lastLlmContext) return;
+
+      lastLlmTick = now;
+      lastLlmContext = signature;
+      llmBusy = true;
+      try {
+        const result = await fetchLlmEmotion(text);
+        applyAutoEmotion(result, "GPT 맥락");
+      } catch (error) {
+        setSttStatus(error instanceof Error ? error.message : "GPT 요청 실패");
+      } finally {
+        llmBusy = false;
+      }
+    }
+
+    function setLlmEnabled(enabled) {
+      llmEnabled = enabled;
+      llmToggle.classList.toggle("active", enabled);
+      llmToggle.textContent = enabled ? "GPT 맥락 ON" : "GPT 맥락 OFF";
+      if (!enabled) {
+        setSttStatus(sttRunning ? "듣는 중... (규칙 기반)" : "대기 중");
+      } else if (sttRunning) {
+        setSttStatus("듣는 중... (GPT 맥락 분석 포함)");
+      }
+    }
+
+    function setSttStatus(message) {
+      sttStatus.textContent = message;
+    }
+
+    function setupSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        sttToggle.disabled = true;
+        setSttStatus("이 브라우저는 STT를 지원하지 않습니다.");
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = "ko-KR";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onstart = () => {
+        setSttStatus("듣는 중... 주변 대화를 인식합니다.");
+      };
+
+      recognition.onresult = event => {
+        let interim = "";
+        let finalChunk = "";
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript.trim();
+          if (event.results[i].isFinal) {
+            finalChunk += " " + transcript;
+          } else {
+            interim += " " + transcript;
+          }
+        }
+
+        if (finalChunk.trim()) {
+          const finalizedText = finalChunk.trim();
+          utteranceHistory.push(finalizedText);
+          if (utteranceHistory.length > MAX_UTTERANCES) utteranceHistory.shift();
+
+          const result = detectEmotionFromRecentUtterances(finalizedText);
+          applyAutoEmotion(result, "자동 감정(다중 화자)");
+        }
+
+        const visibleText = buildContextText(interim);
+        pendingContextText = visibleText;
+        sttText.textContent = visibleText || "인식 문장이 여기에 표시됩니다.";
+        sttText.scrollTop = sttText.scrollHeight;
+      };
+
+      recognition.onerror = event => {
+        setSttStatus(`STT 오류: ${event.error}`);
+      };
+
+      recognition.onend = () => {
+        if (sttRunning) {
+          recognition.start();
+        } else {
+          setSttStatus("대기 중");
+        }
+      };
+    }
+
+    function toggleStt() {
+      if (!recognition) return;
+      if (!sttRunning) {
+        resetSttBuffers();
+        sttText.textContent = "인식 시작...";
+        sttRunning = true;
+        sttToggle.classList.add("active");
+        sttToggle.textContent = "STT 중지";
+        startContextTimer();
+        recognition.start();
+      } else {
+        sttRunning = false;
+        sttToggle.classList.remove("active");
+        sttToggle.textContent = "STT 시작";
+        stopContextTimer();
+        recognition.stop();
+      }
+    }
+
+    function toggleLlm() {
+      setLlmEnabled(!llmEnabled);
+    }
+
     overviewToggle.addEventListener("click", () => {
       setOverviewMode(!document.body.classList.contains("overview-mode"));
     });
+
+    sttToggle.addEventListener("click", toggleStt);
+    llmToggle.addEventListener("click", toggleLlm);
 
     document.querySelector(".controls").addEventListener("click", e => {
       const btn = e.target.closest("button[data-target]");
@@ -298,6 +822,8 @@
     });
 
     select(0);
+    setLlmEnabled(false);
+    setupSpeechRecognition();
     requestAnimationFrame(render);
   </script>
 </body>
